@@ -11,4 +11,9 @@ export class Vector2
         return vec.x == this.x && vec.y == this.y;
     }
 
+    add(vec)
+    {
+        return new Vector2(this.x + vec.x, this.y + vec.y);
+    }
+
 }

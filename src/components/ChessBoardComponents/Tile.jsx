@@ -12,11 +12,19 @@ function Tile(props) {
             </div>
     }
 
+    let id = props.id;
+
+    let moveIndicator = <div></div>
+    if(props.possibleMove)
+    {
+      moveIndicator = <div className="moveIndicator"> <div>  </div></div>
+    }
+
     return (
-        <div className={props.color+"Tile tile"}>
+        <div onClick={() => props.selectTile(id)} id={id} className={props.color+"Tile tile"}>
             
         {img}
-       
+       {moveIndicator}
         </div>
       
     )
