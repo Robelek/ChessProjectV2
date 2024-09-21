@@ -11,9 +11,8 @@ import { GameState } from './components/GameLogic/GameState.jsx';
 
 function App() {
   const [gameState, setGameState] = useState(new GameState());
-  const[movesForCurrentPiece, setMovesForCurrentPiece] = useState([]);
-  let currentlySelectedPieceID = null;
-
+  const [movesForCurrentPiece, setMovesForCurrentPiece] = useState([]);
+  const [currentlySelectedPiece, setCurrentlySelectedPiece] = useState(null);
 
   function initialiseChessBoard()
   {
@@ -27,24 +26,39 @@ function App() {
   function selectTile(tileID)
   {
     let numID = tileID.split("Tile")[1];
+ 
 
-    if(currentlySelectedPieceID != null)
+    if(currentlySelectedPiece != null)
     {
+    
+  
       let thisPos = gameState.tileIDToPosition(numID);
-
-
-
+      if(movesForCurrentPiece.some((pos) =>  pos.isEqualTo(thisPos)
+      ))
+      {
+   
+        gameState.movePiece(currentlySelectedPiece, thisPos);
+        setCurrentlySelectedPiece(null);
+        setMovesForCurrentPiece([]);
+        return;
+      }
     }
 
 
-    let pieceHere = gameState.findPieceByTileID(numID);
-   
+    let currentPiece = gameState.findPieceByTileID(numID)
     
-    if(pieceHere != null)
+    
+    if(currentPiece != null)
     {
-      currentlySelectedPieceID = pieceHere.id;
-      let possibleMovePositions = gameState.findAvailableMovesForPiece(pieceHere);
-      setMovesForCurrentPiece(possibleMovePositions);
+      if(currentPiece.color == gameState.turnOf)
+      {
+        let possibleMovePositions = gameState.findAvailableMovesForPiece(currentPiece);
+        setMovesForCurrentPiece(possibleMovePositions);
+        setCurrentlySelectedPiece(currentPiece);
+      }
+
+    
+
     }
     else
     {

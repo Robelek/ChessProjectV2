@@ -9,6 +9,13 @@ export class GameState
         this.turnOf = "game not started";
         this.pieces = [];
 
+        //squaresTaken holds 0 for empty, 1 for white, 2 for black
+        this.colorNum = {
+            "empty": 0,
+            "white": 1,
+            "black":2,
+        }
+
         this.squaresTaken = [];
 
         for(let y=0;y<8;y++)
@@ -16,7 +23,7 @@ export class GameState
             let thisRow = [];
             for(let x=0;x<8;x++)
             {
-                thisRow.push(false);
+                thisRow.push(this.colorNum.empty);
 
             }
             this.squaresTaken.push(thisRow);
@@ -56,7 +63,24 @@ export class GameState
             this.pieces.push(new Piece("white", "pawn", new Vector2(x,6)));
             this.pieces.push(new Piece("black", "pawn", new Vector2(x,1)));
        }
-    
+       
+
+       for(let x=0;x<8;x++)
+       {
+        for(let y of [0, 1, 6, 7])
+        {
+            if(y == 0 || y == 1)
+            {
+                this.squaresTaken[y][x] = this.colorNum.black;
+            }
+            else
+            {
+                this.squaresTaken[y][x] = this.colorNum.white;
+            }
+            
+        }
+        
+       }
 
 
     }
@@ -96,7 +120,36 @@ export class GameState
 
     isEmpty(pos)
     {
-        return !this.squaresTaken[pos.y][pos.x];
+        return this.squaresTaken[pos.y][pos.x] == this.colorNum.empty;
+    }
+
+    getEnemyColorOfPiece(piece)
+    {
+        return piece.color == "white" ? "black" : "white";
+    }
+
+    movePiece(piece, newPosition)
+    {
+        let oldPosition = piece.position;
+
+        let pieceAtThatPosition = this.findPieceByPosition(newPosition);
+
+        if(pieceAtThatPosition !== null)
+        {
+            this.pieces = this.pieces.filter((thatPiece) => 
+            {
+                return !thatPiece.position.isEqualTo(newPosition);
+            }
+            )
+        }
+
+        this.squaresTaken[oldPosition.y][oldPosition.x] = this.colorNum.empty;
+        this.squaresTaken[newPosition.y][newPosition.x] = this.colorNum[piece.color];
+
+        piece.position = newPosition;
+
+        this.turnOf = this.turnOf == "white" ? "black" : "white";
+
     }
 
     findMovesForPawn(piece)
@@ -105,6 +158,7 @@ export class GameState
         let initialPosition = piece.initialPosition;
 
         let multip = piece.color == "white" ? -1 : 1;
+     
 
         let possibleMoves = [];
 
@@ -114,6 +168,8 @@ export class GameState
             for(let i = 1; i<=2;i++)
             {
                 let pos = new Vector2(position.x, position.y + i*multip);
+
+               
                 if(this.isEmpty(pos))
                 {
                     possibleMoves.push(pos);
@@ -124,12 +180,6 @@ export class GameState
                     break;
                 }
             }
-
-      
-           
-         
-
-        
         }
         else
         {
@@ -139,8 +189,24 @@ export class GameState
                 possibleMoves.push(pos);
             }
 
-       
         }
+
+        let enemyColor = this.getEnemyColorOfPiece(piece);
+
+        //captures, we check diagonals
+        for(let x=-1;x<2;x+=2)
+        {
+            let pos = new Vector2(position.x + x, position.y + multip);
+            if(this.isInsideBoard(pos) && this.squaresTaken[pos.y][pos.x] == this.colorNum[enemyColor])
+            {
+                possibleMoves.push(pos);
+               
+                      
+            
+    
+            }
+        }
+
 
         return possibleMoves;
     }
@@ -150,21 +216,39 @@ export class GameState
         let position = piece.position;
         let possibleMoves = [];
 
+        let enemyColor = this.getEnemyColorOfPiece(piece);
+
         for(let mulA = -1; mulA <= 1; mulA += 2)
         {
             for(let mulB = -1; mulB <= 1; mulB += 2)
             {
+
+                
                 let pos1 = position.add(new Vector2(2*mulA, mulB));
                 let pos2 = position.add(new Vector2(mulA, 2*mulB));
-                if(this.isInsideBoard(pos1))
-                {
-                    possibleMoves.push(pos1);
-                }
 
-                if(this.isInsideBoard(pos2))
+                let poses = [pos1, pos2];
+
+            
+
+                for(let i =0;i<=1;i++)
                 {
-                    possibleMoves.push(pos2);
+                    let thisPos = poses[i];
+                    if(this.isInsideBoard(thisPos))
+                    {
+                        if(this.isEmpty(thisPos) || this.squaresTaken[thisPos.y][thisPos.x] == this.colorNum[enemyColor])
+                        {
+                            possibleMoves.push(thisPos);
+                        }
+                    
+                        
+                        
+                        
+                    }
+    
+                   
                 }
+               
 
            
              
@@ -182,9 +266,57 @@ export class GameState
         let position = piece.position;
         let possibleMoves = [];
 
+        let enemyColor = this.getEnemyColorOfPiece(piece);
+
+        for(let mulA = -1; mulA<2;mulA+=2)
+        {
+
+            for(let mulB=-1; mulB<2;mulB+=2)
+            {
+             
+                let pos = piece.position;
+
+                for(let i = 0; i<8; i++)
+                {   
+                    pos = pos.add(new Vector2(mulA, mulB));
+
+                    if(this.isInsideBoard(pos))
+                    {
+                        if(this.isEmpty(pos))
+                        {
+                            possibleMoves.push(pos);
+                        }
+                        else
+                        {
+                            if(this.squaresTaken[pos.y][pos.x] == this.colorNum[enemyColor])
+                            {
+                                possibleMoves.push(pos);
+                               
+                            }
+                            break;
+                        } 
+                    }
+                }
+                
+            }
+
+
+            
+
+        }
+
+        return possibleMoves;
+
     
     }
 
+
+    findMovesForRook(piece)
+    {
+        let possibleMoves = [];
+
+        return possibleMoves;
+    }
 
     findAvailableMovesForPiece(piece)
     {
