@@ -17,7 +17,9 @@ function App() {
   function initialiseChessBoard()
   {
     let _gameState = new GameState();
-    _gameState.init();
+    let enemyType = document.getElementById("enemySelect").value;
+    let enemyPlaysAs = document.getElementById("enemyPlayAs").value;
+    _gameState.init(enemyType, enemyPlaysAs);
 
     setGameState(_gameState);
 
@@ -25,6 +27,16 @@ function App() {
 
   function selectTile(tileID)
   {
+    if(gameState.enemyType != "player" && gameState.turnOf == gameState.enemyPlaysAs)
+    {
+      return;
+    }
+
+    if(gameState.turnOf == "white won" || gameState.turnOf == "black won")
+    {
+      return;
+    }
+
     let numID = tileID.split("Tile")[1];
  
 

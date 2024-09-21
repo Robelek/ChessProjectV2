@@ -12,6 +12,9 @@ export class GameState
         this.turnOf = "game not started";
         this.pieces = [];
 
+        this.enemyType = "player";
+        this.enemyPlaysAs = "black";
+
         //squaresTaken holds 0 for empty, 1 for white, 2 for black
         this.colorNum = {
             "empty": 0,
@@ -58,11 +61,12 @@ export class GameState
         return newGameState;
     }
 
-    init()
+    init(_enemyType, _enemyPlaysAs)
     {
         this.turnOf = "white";
         this.pieces = [];
-
+        this.enemyType = _enemyType;
+        this.enemyPlaysAs = _enemyPlaysAs
 
         this.pieces.push(
 
@@ -91,10 +95,18 @@ export class GameState
             this.pieces.push(new Piece("white", "pawn", new Vector2(x,6)));
             this.pieces.push(new Piece("black", "pawn", new Vector2(x,1)));
        }
-       
+    
+       for(let x=0; x<8;x++)
+       {
+        for(let y=0;y<8;y++)
+        {
+            this.squaresTaken[y][x] = this.colorNum.empty;
+        }
+       }
 
        for(let x=0;x<8;x++)
        {
+
         for(let y of [0, 1, 6, 7])
         {
             if(y == 0 || y == 1)
@@ -107,10 +119,65 @@ export class GameState
             }
             
         }
+    
         
+
        }
 
 
+       if(this.enemyType == "randomAI" && this.enemyPlaysAs == "white")
+       {
+        this.randomAITurn();
+       }
+
+
+    }
+
+    //returns number from 0 to max-1!
+    getRandomInt(max) {
+        return Math.floor(Math.random() * max);
+      }
+
+      
+
+    randomAITurn()
+    {
+        let possibleMoves = this.getAllAvailableMovesFor(this.enemyPlaysAs);
+        //console.log(possibleMoves);
+
+        let randomNum = this.getRandomInt(possibleMoves.length);
+
+        let thatPiece = possibleMoves[randomNum].piece;
+        let thatPos = possibleMoves[randomNum].position;
+
+        this.movePiece(thatPiece, thatPos, true);
+
+    }
+
+    getAllAvailableMovesFor(color)
+    {
+        let possibleMoves = [];
+        for(let i=0;i<this.pieces.length;i++)
+        {
+            if(this.pieces[i].color == color)
+            {
+
+                let pieceMoves = this.findAvailableMovesForPiece(this.pieces[i]);
+
+                for(let j=0;j<pieceMoves.length;j++)
+                {
+                    possibleMoves.push(
+                        {
+                            "piece": this.pieces[i],
+                            "position": pieceMoves[j]
+                        }
+                    )
+                }
+
+            }
+        }
+
+        return possibleMoves;
     }
 
     findPieceByTileID(id)
@@ -156,7 +223,7 @@ export class GameState
         return piece.color == "white" ? "black" : "white";
     }
 
-    movePiece(piece, newPosition)
+    movePiece(piece, newPosition, dontCheckMore=false)
     {
         let oldPosition = piece.position;
 
@@ -177,6 +244,24 @@ export class GameState
         piece.position = newPosition;
 
         this.turnOf = this.turnOf == "white" ? "black" : "white";
+
+        this.checkForMate();
+
+        if(!dontCheckMore)
+        {
+            if(this.turnOf == this.enemyPlaysAs)
+                {
+                    if(this.enemyType == "randomAI")
+                    {
+                        this.randomAITurn();
+                    }
+                    if(this.enemyType == "smartAI")
+                    {
+        
+                    }
+                }
+        }
+       
 
     }
 
@@ -399,13 +484,14 @@ export class GameState
 
         for(let x = -1; x<2;x+=1)
         {
-            for(let y=-1; y<2;y+=1)
+            for(let y= -1; y<2;y+=1)
             {
                 if(x == 0 && y == 0)
                 {
                     continue;
                 }
 
+                console.log(`${x}, ${y}`);
                 let pos = piece.position.add(new Vector2(x, y));
 
                 if(this.isInsideBoard(pos))
@@ -421,11 +507,13 @@ export class GameState
                                 possibleMoves.push(pos);
                                
                             }
-                            break;
+                       
                         } 
                     }
             }
         }
+
+        console.log(possibleMoves)
         return possibleMoves;
     }
 
@@ -476,6 +564,30 @@ export class GameState
         
     }
 
+    checkForMate()
+    {
+        if(this.isKingInCheck(this.turnOf))
+        {
+            for(let i = 0; i < this.pieces.lenght;i++)
+            {
+                let piece = this.pieces[i];
+                if(piece.color == this.turnOf)
+                {
+                    let movesAvailable = this.findAvailableMovesForPiece(piece);
+    
+                    if(movesAvailable.length > 0)
+                    {
+                        return;
+                    }
+                }
+            }
+            this.turnOf = this.turnOf == "white" ? "black won" : "white won";
+
+            return;
+        }
+        return;
+    }
+
     forceSavingKing(piece, possibleMoves)
     {
         let newPossibleMoves = [];
@@ -486,7 +598,7 @@ export class GameState
             let tempGameState = cloneDeep(this);
             let thatPiece = tempGameState.findPieceByPosition(piece.position);         
 
-            tempGameState.movePiece(thatPiece, possibleMoves[i]);
+            tempGameState.movePiece(thatPiece, possibleMoves[i], true);
             if(!tempGameState.isKingInCheck(this.turnOf))
             {
                 newPossibleMoves.push(possibleMoves[i]);
