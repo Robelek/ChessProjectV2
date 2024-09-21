@@ -3,6 +3,8 @@
   --primary: #000000;
   --secondary: #ff2137;
   --bgcolor: #101010;
+
+  --size: 0.2rem;
   
 }
 
@@ -72,13 +74,15 @@ main
   z-index: 1;
   width:5rem;
   height:5rem;
+
+  filter: url(#solid-outline);
 }
 
 
 
 .Piece.black > img
 {
-  filter: invert(100%);
+  filter: url(#solid-outline) invert(100%);
 }
 .moveIndicator
 {
