@@ -311,12 +311,96 @@ export class GameState
     }
 
 
-    findMovesForRook(piece)
+    findMovesForTower(piece)
     {
         let possibleMoves = [];
+        let enemyColor = this.getEnemyColorOfPiece(piece);
+
+        let directions = [
+            new Vector2(-1, 0),
+            new Vector2(1, 0),
+            new Vector2(0, -1),
+            new Vector2(0, 1),
+        ]
+
+        for(let dir of directions)
+        {
+            let pos = piece.position;
+
+            for(let i=0; i<8;i++)
+            {
+                pos = pos.add(dir);
+
+                if(this.isInsideBoard(pos))
+                    {
+                        if(this.isEmpty(pos))
+                        {
+                            possibleMoves.push(pos);
+                        }
+                        else
+                        {
+                            if(this.squaresTaken[pos.y][pos.x] == this.colorNum[enemyColor])
+                            {
+                                possibleMoves.push(pos);
+                               
+                            }
+                            break;
+                        } 
+                    }
+            }
+        }
 
         return possibleMoves;
     }
+
+    findMovesForQueen(piece)
+    {
+        let towerMoves = this.findMovesForTower(piece);
+        let bishopMoves = this.findMovesForBishop(piece);
+
+        let possibleMoves = towerMoves.concat(bishopMoves);
+
+        return possibleMoves;
+    }
+
+    findMovesForKing(piece)
+    {
+        let possibleMoves = [];
+        let enemyColor = this.getEnemyColorOfPiece(piece);
+
+
+        for(let x = -1; x<2;x+=1)
+        {
+            for(let y=-1; y<2;y+=1)
+            {
+                if(x == 0 && y == 0)
+                {
+                    continue;
+                }
+
+                let pos = piece.position.add(new Vector2(x, y));
+
+                if(this.isInsideBoard(pos))
+                    {
+                        if(this.isEmpty(pos))
+                        {
+                            possibleMoves.push(pos);
+                        }
+                        else
+                        {
+                            if(this.squaresTaken[pos.y][pos.x] == this.colorNum[enemyColor])
+                            {
+                                possibleMoves.push(pos);
+                               
+                            }
+                            break;
+                        } 
+                    }
+            }
+        }
+        return possibleMoves;
+    }
+
 
     findAvailableMovesForPiece(piece)
     {
@@ -335,8 +419,8 @@ export class GameState
             case "bishop":
                 firstPassMoves = this.findMovesForBishop(piece);
                 break;
-            case "rook":
-                firstPassMoves = this.findMovesForRook(piece);
+            case "tower":
+                firstPassMoves = this.findMovesForTower(piece);
                 break;
             case "queen":
                 firstPassMoves = this.findMovesForQueen(piece);
