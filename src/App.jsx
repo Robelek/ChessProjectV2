@@ -52,7 +52,7 @@ function App() {
     {
       if(currentPiece.color == gameState.turnOf)
       {
-        let possibleMovePositions = gameState.findAvailableMovesForPiece(currentPiece);
+        let possibleMovePositions = gameState.findAvailableMovesForPiece(currentPiece, true);
         setMovesForCurrentPiece(possibleMovePositions);
         setCurrentlySelectedPiece(currentPiece);
       }

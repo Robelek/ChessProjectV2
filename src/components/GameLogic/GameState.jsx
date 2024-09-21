@@ -2,6 +2,9 @@
 import { Piece } from "./Piece";
 import { Vector2 } from "./Misc/Vector2";
 
+
+import { cloneDeep } from "lodash";
+
 export class GameState
 {
     constructor()
@@ -29,6 +32,31 @@ export class GameState
             this.squaresTaken.push(thisRow);
         }
     };
+
+    deepCopy(gameState) {
+        let newGameState = new GameState();
+        newGameState.turnOf = gameState.turnOf;
+       
+        
+        for(let y=0; y<8; y++)
+        {
+            for(let x=0;x<8;x++)
+            {
+                newGameState.squaresTaken[y][x] = this.squaresTaken[y][x];
+            }
+        }
+
+        for(let i = 0; i<this.pieces.length;i++)
+        {
+            let thatPiece = this.pieces[i];
+            let newPiece = new Piece(thatPiece.color, thatPiece.type, thatPiece.initialPosition);
+            newPiece.position = new Vector2(thatPiece.position.x, thatPiece.position.y);
+
+            newGameState.pieces.push(thatPiece);
+        }
+
+        return newGameState;
+    }
 
     init()
     {
@@ -401,39 +429,109 @@ export class GameState
         return possibleMoves;
     }
 
+    isKingInCheck(color)
+    {
+        let kingPiece = null;
 
-    findAvailableMovesForPiece(piece)
+        let enemyPieces = [];
+
+        for(let i=0; i<this.pieces.length;i++)
+        {
+            if(this.pieces[i].type == "king" && this.pieces[i].color == color)
+            {
+                kingPiece = this.pieces[i];
+                continue;
+            }
+
+            if(this.pieces[i].color != color)
+            {
+                enemyPieces.push(this.pieces[i]);
+            }
+        }
+
+        if(kingPiece == null)
+        {
+            console.error("King somehow got lost?!");
+            return;
+        }
+
+        for(let piece of enemyPieces)
+        {
+            let availableMoves = this.findAvailableMovesForPiece(piece);
+
+            if(availableMoves.some((pos) => 
+            {
+                return pos.isEqualTo(kingPiece.position)
+            }))
+            {
+                return true;
+            }
+
+
+
+        }
+
+        return false;
+
+        
+    }
+
+    forceSavingKing(piece, possibleMoves)
+    {
+        let newPossibleMoves = [];
+        for(let i=0;i<possibleMoves.length;i++)
+        {
+
+           
+            let tempGameState = cloneDeep(this);
+            let thatPiece = tempGameState.findPieceByPosition(piece.position);         
+
+            tempGameState.movePiece(thatPiece, possibleMoves[i]);
+            if(!tempGameState.isKingInCheck(this.turnOf))
+            {
+                newPossibleMoves.push(possibleMoves[i]);
+            }
+            
+        }
+        return newPossibleMoves;
+    }
+
+
+    findAvailableMovesForPiece(piece, withAdditionalChecks=false)
     {
 
-        let firstPassMoves = [];
+   
         let availableMoves = [];
 
         switch(piece.type)
         {
             case "pawn":
-                firstPassMoves = this.findMovesForPawn(piece);
+                availableMoves = this.findMovesForPawn(piece);
                 break;
             case "horse":
-                firstPassMoves = this.findMovesForHorse(piece);
+                availableMoves = this.findMovesForHorse(piece);
                 break;
             case "bishop":
-                firstPassMoves = this.findMovesForBishop(piece);
+                availableMoves = this.findMovesForBishop(piece);
                 break;
             case "tower":
-                firstPassMoves = this.findMovesForTower(piece);
+                availableMoves = this.findMovesForTower(piece);
                 break;
             case "queen":
-                firstPassMoves = this.findMovesForQueen(piece);
+                availableMoves = this.findMovesForQueen(piece);
                 break;
             case "king":
-                firstPassMoves = this.findMovesForKing(piece);
+                availableMoves = this.findMovesForKing(piece);
                 break;
             default:
                 window.alert("How the heck?!");
                 break;
         }
 
-        availableMoves = firstPassMoves;
+        if(withAdditionalChecks)
+        {
+            availableMoves = this.forceSavingKing(piece, availableMoves);
+        }
 
         return availableMoves;
 
