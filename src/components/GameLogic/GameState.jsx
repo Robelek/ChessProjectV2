@@ -3,7 +3,7 @@ import { Piece } from "./Piece";
 import { Vector2 } from "./Misc/Vector2";
 
 
-import { cloneDeep } from "lodash";
+
 
 export class GameState
 {
@@ -39,23 +39,26 @@ export class GameState
     deepCopy(gameState) {
         let newGameState = new GameState();
         newGameState.turnOf = gameState.turnOf;
+        newGameState.pieces = [];
+        newGameState.enemyType = gameState.enemyType;
+        newGameState.enemyPlaysAs = gameState.enemyPlaysAs
        
         
         for(let y=0; y<8; y++)
         {
             for(let x=0;x<8;x++)
             {
-                newGameState.squaresTaken[y][x] = this.squaresTaken[y][x];
+                newGameState.squaresTaken[y][x] = gameState.squaresTaken[y][x];
             }
         }
 
-        for(let i = 0; i<this.pieces.length;i++)
+        for(let i = 0; i<gameState.pieces.length;i++)
         {
-            let thatPiece = this.pieces[i];
+            let thatPiece = gameState.pieces[i];
             let newPiece = new Piece(thatPiece.color, thatPiece.type, thatPiece.initialPosition);
             newPiece.position = new Vector2(thatPiece.position.x, thatPiece.position.y);
 
-            newGameState.pieces.push(thatPiece);
+            newGameState.pieces.push(newPiece);
         }
 
         return newGameState;
@@ -142,15 +145,24 @@ export class GameState
 
     randomAITurn()
     {
+        if(this.turnOf != this.enemyPlaysAs)
+        {
+            return;
+        }
+
         let possibleMoves = this.getAllAvailableMovesFor(this.enemyPlaysAs);
-        //console.log(possibleMoves);
+        
+        if(possibleMoves != [])
+        {
+            let randomNum = this.getRandomInt(possibleMoves.length);
 
-        let randomNum = this.getRandomInt(possibleMoves.length);
+            let thatPiece = possibleMoves[randomNum].piece;
+            let thatPos = possibleMoves[randomNum].position;
+    
+            this.movePiece(thatPiece, thatPos, true);
+        }
 
-        let thatPiece = possibleMoves[randomNum].piece;
-        let thatPos = possibleMoves[randomNum].position;
-
-        this.movePiece(thatPiece, thatPos, true);
+      
 
     }
 
@@ -162,7 +174,7 @@ export class GameState
             if(this.pieces[i].color == color)
             {
 
-                let pieceMoves = this.findAvailableMovesForPiece(this.pieces[i]);
+                let pieceMoves = this.findAvailableMovesForPiece(this.pieces[i], true);
 
                 for(let j=0;j<pieceMoves.length;j++)
                 {
@@ -244,6 +256,9 @@ export class GameState
         piece.position = newPosition;
 
         this.turnOf = this.turnOf == "white" ? "black" : "white";
+
+
+   
 
         this.checkForMate();
 
@@ -491,7 +506,7 @@ export class GameState
                     continue;
                 }
 
-                console.log(`${x}, ${y}`);
+                
                 let pos = piece.position.add(new Vector2(x, y));
 
                 if(this.isInsideBoard(pos))
@@ -513,7 +528,7 @@ export class GameState
             }
         }
 
-        console.log(possibleMoves)
+       
         return possibleMoves;
     }
 
@@ -545,7 +560,7 @@ export class GameState
 
         for(let piece of enemyPieces)
         {
-            let availableMoves = this.findAvailableMovesForPiece(piece);
+            let availableMoves = this.findAvailableMovesForPiece(piece, false);
 
             if(availableMoves.some((pos) => 
             {
@@ -568,12 +583,15 @@ export class GameState
     {
         if(this.isKingInCheck(this.turnOf))
         {
-            for(let i = 0; i < this.pieces.lenght;i++)
+          
+            for(let i = 0; i < this.pieces.length;i++)
             {
                 let piece = this.pieces[i];
+      
                 if(piece.color == this.turnOf)
                 {
-                    let movesAvailable = this.findAvailableMovesForPiece(piece);
+                  
+                    let movesAvailable = this.findAvailableMovesForPiece(piece, false);
     
                     if(movesAvailable.length > 0)
                     {
@@ -581,6 +599,8 @@ export class GameState
                     }
                 }
             }
+
+
             this.turnOf = this.turnOf == "white" ? "black won" : "white won";
 
             return;
@@ -590,19 +610,24 @@ export class GameState
 
     forceSavingKing(piece, possibleMoves)
     {
+
+
         let newPossibleMoves = [];
         for(let i=0;i<possibleMoves.length;i++)
         {
+            let tempGameState = this.deepCopy(this);
+     
 
-           
-            let tempGameState = cloneDeep(this);
             let thatPiece = tempGameState.findPieceByPosition(piece.position);         
 
-            tempGameState.movePiece(thatPiece, possibleMoves[i], true);
+            tempGameState.movePiece(thatPiece, possibleMoves[i], false);
+      
+
             if(!tempGameState.isKingInCheck(this.turnOf))
             {
                 newPossibleMoves.push(possibleMoves[i]);
             }
+           
             
         }
         return newPossibleMoves;
@@ -611,7 +636,7 @@ export class GameState
 
     findAvailableMovesForPiece(piece, withAdditionalChecks=false)
     {
-
+      
    
         let availableMoves = [];
 
@@ -639,6 +664,7 @@ export class GameState
                 window.alert("How the heck?!");
                 break;
         }
+       
 
         if(withAdditionalChecks)
         {
