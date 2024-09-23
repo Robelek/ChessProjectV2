@@ -57,7 +57,7 @@ export class GameState
             let thatPiece = gameState.pieces[i];
             let newPiece = new Piece(thatPiece.color, thatPiece.type, thatPiece.initialPosition);
             newPiece.position = new Vector2(thatPiece.position.x, thatPiece.position.y);
-
+            newPiece.hasMoved = thatPiece.hasMoved
             newGameState.pieces.push(newPiece);
         }
 
@@ -243,17 +243,41 @@ export class GameState
 
         if(pieceAtThatPosition !== null)
         {
-            this.pieces = this.pieces.filter((thatPiece) => 
+            if(piece.type == "king" && pieceAtThatPosition.type=="tower" && piece.color == pieceAtThatPosition.color)
             {
-                return !thatPiece.position.isEqualTo(newPosition);
+                //we are actually castling, so let's teleport the tower and change the newPosition to the correct one
+
+                let mul = pieceAtThatPosition.position.x > piece.position.x ? 1 : -1;
+                
+                newPosition = piece.position.add(new Vector2(2*mul, 0));
+
+                let oldRookPosition = pieceAtThatPosition.position;
+                let newRookPosition = newPosition.add(new Vector2(-mul, 0));
+
+                this.squaresTaken[oldRookPosition.y][oldRookPosition.x] = this.colorNum.empty;
+                this.squaresTaken[newRookPosition.y][newRookPosition.x] = this.colorNum[piece.color];
+        
+                pieceAtThatPosition.position = newRookPosition;
+                pieceAtThatPosition.hasMoved = true;
+
+
             }
-            )
+            else
+            {   
+                this.pieces = this.pieces.filter((thatPiece) => 
+                    {
+                        return !thatPiece.position.isEqualTo(newPosition);
+                    }
+                    )
+            }
+         
         }
 
         this.squaresTaken[oldPosition.y][oldPosition.x] = this.colorNum.empty;
         this.squaresTaken[newPosition.y][newPosition.x] = this.colorNum[piece.color];
 
         piece.position = newPosition;
+        piece.hasMoved = true;
 
         this.turnOf = this.turnOf == "white" ? "black" : "white";
 
@@ -528,6 +552,48 @@ export class GameState
             }
         }
 
+
+        //castling special thingy
+        if(!piece.hasMoved)
+        {
+            let rooks = [
+                this.findPieceByPosition(new Vector2(0, piece.position.y)),
+                this.findPieceByPosition(new Vector2(7, piece.position.y)),
+            ]
+
+            for(let rook of rooks)
+            {
+                if(!rook.hasMoved)
+                {
+                    //we check all spaces between them, and if empty, then we can castle
+                    let mul = rook.position.x > piece.position.x ? 1 : -1;
+
+                    let pos = piece.position;
+
+                    for(let i=0;i<4;i++)
+                    {
+                        pos = pos.add(new Vector2(mul, 0));
+
+                        if(pos.isEqualTo(rook.position))
+                        {
+                            possibleMoves.push(rook.position);
+                            break;
+                        }
+
+                        if(!this.isInsideBoard(pos))
+                        {
+                            break;
+                        }
+                        else if(!this.isEmpty(pos))
+                        {
+                            break;
+                        }
+                    }
+
+                }
+            }
+        }
+        
        
         return possibleMoves;
     }

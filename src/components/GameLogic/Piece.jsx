@@ -9,6 +9,8 @@ export class Piece
         this.initialPosition = _initialPosition;
 
         this.id = this.type + this.color + this.initialPosition;
+
+        this.hasMoved = false;
     };
 
    
