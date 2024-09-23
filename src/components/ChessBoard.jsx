@@ -1,6 +1,7 @@
 import Tile from "./ChessBoardComponents/Tile"
 import { Vector2 } from "./GameLogic/Misc/Vector2";
 import GameOverPopup from "./ChessBoardComponents/GameOverPopup";
+import PromotionPopup from "./ChessBoardComponents/PromotionPopup";
 
 function ChessBoard(props) {
     let tiles = []
@@ -62,10 +63,12 @@ function ChessBoard(props) {
         winner = "Draw!";
       }
 
+    let promotionPosition = null;
   
     return (
         <div className="ChessBoard">
           <GameOverPopup winner={winner}> </GameOverPopup>
+          <PromotionPopup promotionPosition={promotionPosition}></PromotionPopup>
           {tiles}
         </div>
       

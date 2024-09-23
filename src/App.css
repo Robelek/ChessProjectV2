@@ -11,6 +11,7 @@
 #root
 {
   width:100%;
+
 }
 
 body
@@ -57,6 +58,8 @@ main
   margin-top:1rem;
   margin-left:auto;
   margin-right:auto;
+
+  height:fit-content;
 
 }
 
@@ -133,6 +136,7 @@ main
   flex-direction: column;
   justify-content: center;
   width:100%;
+  font-size: 1.2rem;
 }
 
 .gameOverPopup
@@ -142,4 +146,35 @@ main
   position: absolute;
   background: rgba(0, 0, 0, 0.5);
   z-index: 10;
+
+  display:flex;
+  justify-content: center;
+  align-items:  center;
+}
+
+.gameOverPopup > .whoWon
+{
+  background: var(--bgcolor);
+  margin: auto;
+  width: 12rem;
+  height: 12rem;
+
+  font-size: 2rem;
+  text-align: center;
+  display:flex;
+
+  justify-content: center;
+  align-items: center;
+}
+
+.optionSelects
+{
+  display:flex;
+  flex-direction: column;
+  padding:1rem;
+}
+
+.optionSelects > select
+{
+  margin-bottom: 1rem;
 }

@@ -3,7 +3,7 @@ function UserInterface(props) {
       <div className="gameUIBottomLeft">
           <div className="TurnOfDisplay"> Turn of: {props.gameState.turnOf}</div>
 
-          <div>
+          <div className="optionSelects">
           Enemy will be:
           <select id="enemySelect"> 
             <option value="player">
@@ -35,7 +35,7 @@ function UserInterface(props) {
           </select>
 
 
-          </div>
+        </div>
          
 
           <button onClick={props.initFunction} className="NewGameButton"> New game </button>

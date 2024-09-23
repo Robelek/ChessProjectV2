@@ -1,13 +1,15 @@
 
 function GameOverPopup(props) {
-    
 
     if(props.winner != null)
     {
         return (
             <div className="gameOverPopup">
                 <div className="whoWon">
-                    {props.winner} won!
+                    <span>
+                        {props.winner} won!
+                    </span>
+                   
                 </div>
             </div>
            
