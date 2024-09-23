@@ -7,6 +7,7 @@ export class Piece
         this.color = _color;
         this.position = _initialPosition;
         this.initialPosition = _initialPosition;
+        this.lastPosition = _initialPosition;
 
         this.id = this.type + this.color + this.initialPosition;
 

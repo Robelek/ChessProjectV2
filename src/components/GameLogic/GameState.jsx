@@ -15,6 +15,8 @@ export class GameState
         this.enemyType = "player";
         this.enemyPlaysAs = "black";
 
+        this.lastMovedPiece = null;
+
         //squaresTaken holds 0 for empty, 1 for white, 2 for black
         this.colorNum = {
             "empty": 0,
@@ -42,7 +44,7 @@ export class GameState
         newGameState.pieces = [];
         newGameState.enemyType = gameState.enemyType;
         newGameState.enemyPlaysAs = gameState.enemyPlaysAs
-       
+       newGameState.lastMovedPiece = gameState.lastMovedPiece;
         
         for(let y=0; y<8; y++)
         {
@@ -57,7 +59,8 @@ export class GameState
             let thatPiece = gameState.pieces[i];
             let newPiece = new Piece(thatPiece.color, thatPiece.type, thatPiece.initialPosition);
             newPiece.position = new Vector2(thatPiece.position.x, thatPiece.position.y);
-            newPiece.hasMoved = thatPiece.hasMoved
+            newPiece.hasMoved = thatPiece.hasMoved;
+            newPiece.lastPosition = thatPiece.lastPosition;
             newGameState.pieces.push(newPiece);
         }
 
@@ -259,11 +262,15 @@ export class GameState
         
                 pieceAtThatPosition.position = newRookPosition;
                 pieceAtThatPosition.hasMoved = true;
+                pieceAtThatPosition.lastPosition = oldRookPosition;
 
 
             }
             else
-            {   
+            {
+           
+              
+                
                 this.pieces = this.pieces.filter((thatPiece) => 
                     {
                         return !thatPiece.position.isEqualTo(newPosition);
@@ -272,12 +279,33 @@ export class GameState
             }
          
         }
+        else if(this.lastMovedPiece !== null)
+        {
+            //is empty, but this could still be en passant
+            let square = this.getEnPassantSquare(piece, this.lastMovedPiece);
+            if(square !== null)
+            {
+                if(square.isEqualTo(newPosition))
+                {
+                    this.pieces = this.pieces.filter((thatPiece) => 
+                        {
+                            return !thatPiece.position.isEqualTo(this.lastMovedPiece.position);
+                        }
+                        )
+                }
+            }
+            
+        }
 
         this.squaresTaken[oldPosition.y][oldPosition.x] = this.colorNum.empty;
         this.squaresTaken[newPosition.y][newPosition.x] = this.colorNum[piece.color];
 
         piece.position = newPosition;
         piece.hasMoved = true;
+        piece.lastPosition = oldPosition;
+
+        this.lastMovedPiece = piece;
+        
 
         this.turnOf = this.turnOf == "white" ? "black" : "white";
 
@@ -302,6 +330,34 @@ export class GameState
         }
        
 
+    }
+
+    getEnPassantSquare(piece, thatPiece)
+    {
+        if(thatPiece.type == "pawn" && piece.type == "pawn" && piece.color != thatPiece.color)
+            {
+                if(thatPiece.lastPosition == thatPiece.initialPosition)
+                {
+                    if(Math.abs(thatPiece.position.y - thatPiece.lastPosition.y)==2)
+                    {
+                        //that piece just made the initial two squares move.
+                        if(Math.abs(thatPiece.position.x - piece.position.x) == 1 && thatPiece.position.y == piece.position.y)
+                        {
+                            //that piece is beside our pawn, meaning we can finally do en passant
+                            let mul = thatPiece.initialPosition.y > piece.initialPosition.y ? 1 : -1;
+                
+                            return thatPiece.position.add(new Vector2(0, mul));
+
+                        }
+                    }
+                  
+
+                }
+            
+
+            }
+
+        return null;
     }
 
     findMovesForPawn(piece)
@@ -357,6 +413,20 @@ export class GameState
             
     
             }
+        }
+
+        //en passant
+        if(this.lastMovedPiece !== null)
+        {
+            
+             
+
+                let square = this.getEnPassantSquare(piece, this.lastMovedPiece);
+                if(square !== null)
+                {
+                    possibleMoves.push(square);
+                }
+               
         }
 
 
