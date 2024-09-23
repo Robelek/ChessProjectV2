@@ -139,7 +139,7 @@ export class GameState
 
     }
 
-    //returns number from 0 to max-1!
+    //returns number from 0 to max!
     getRandomInt(max) {
         return Math.floor(Math.random() * max);
       }
@@ -157,7 +157,10 @@ export class GameState
         
         if(possibleMoves != [])
         {
-            let randomNum = this.getRandomInt(possibleMoves.length);
+            let randomNum = this.getRandomInt(possibleMoves.length-1);
+
+        
+       
 
             let thatPiece = possibleMoves[randomNum].piece;
             let thatPos = possibleMoves[randomNum].position;
@@ -238,7 +241,7 @@ export class GameState
         return piece.color == "white" ? "black" : "white";
     }
 
-    movePiece(piece, newPosition, dontCheckMore=false)
+    movePiece(piece, newPosition, dontCheckMore=false, dontCheckForMate=false)
     {
         let oldPosition = piece.position;
 
@@ -311,8 +314,11 @@ export class GameState
 
 
    
-
-        this.checkForMate();
+        if(!dontCheckForMate)
+        {
+            this.checkForMate();
+        }
+        
 
         if(!dontCheckMore)
         {
@@ -633,6 +639,10 @@ export class GameState
 
             for(let rook of rooks)
             {
+                if(rook == null)
+                {
+                    continue;
+                }
                 if(!rook.hasMoved)
                 {
                     //we check all spaces between them, and if empty, then we can castle
@@ -672,43 +682,107 @@ export class GameState
     {
         let kingPiece = null;
 
-        let enemyPieces = [];
+        let enemyKnights = [];
 
         for(let i=0; i<this.pieces.length;i++)
         {
             if(this.pieces[i].type == "king" && this.pieces[i].color == color)
             {
                 kingPiece = this.pieces[i];
-                continue;
+               
             }
-
-            if(this.pieces[i].color != color)
+            else if(this.pieces[i].type == "knight" && this.pieces[i].color != color)
             {
-                enemyPieces.push(this.pieces[i]);
+                enemyKnights.push(this.pieces[i]);
             }
         }
 
-        if(kingPiece == null)
+        if(kingPiece === null)
         {
             console.error("King somehow got lost?!");
-            return;
+            return false;
         }
 
-        for(let piece of enemyPieces)
-        {
-            let availableMoves = this.findAvailableMovesForPiece(piece, false);
+        //we need to check the knights separately
 
-            if(availableMoves.some((pos) => 
-            {
-                return pos.isEqualTo(kingPiece.position)
-            }))
+        for(let i = 0; i<enemyKnights.length;i++)
+        {
+            let thisKnight = enemyKnights[i];
+            let positionDiff = Math.abs(thisKnight.position.x - kingPiece.position.x) + Math.abs(thisKnight.position.y - kingPiece.position.y);
+            
+            if(positionDiff == 3 && (thisKnight.position.x == 1 || thisKnight.position.x == 2))
             {
                 return true;
-            }
-
-
-
+            } 
         }
+
+        let dirMultiplier = color == "white" ? -1 : 1;
+        let enemyColor = this.getEnemyColorOfPiece(kingPiece);
+
+        for(let x=-1;x<2;x++)
+        {
+            for(let y=-1;y<2;y++)
+            {
+                if(x==0&&y==0)
+                {
+                    continue;
+                }
+                else
+                {
+                    let pos = kingPiece.position;
+                    let dir = new Vector2(x,y);
+                    for(let i=0;i<8;i++)
+                    {
+                        pos = pos.add(dir);
+
+                        if(!this.isInsideBoard(pos) || this.squaresTaken[pos.y][pos.x] == this.colorNum[color])
+                        {
+                            break;
+                        }
+
+                        if(this.squaresTaken[pos.y][pos.x] == this.colorNum[enemyColor])
+                            {
+                                //there is an enemy here. We know we can safely break this direction, but we need to determine if it is attacking us
+                                let enemyPieceType = this.findPieceByPosition(pos).type;
+                                if(x == 0 || y == 0)
+                                {
+                                    //left/right/up/down, we only care about the enemy Queen and Towers.
+                                    if(enemyPieceType == "queen" || enemyPieceType == "tower")
+                                    {
+                                        return true;
+                                    }
+                                }
+                                else
+                                {
+                                    
+                                    if(y == dirMultiplier && x != 0)
+                                    {
+                                        //special case where we also care for pawns, since they attack us
+                                        if(enemyPieceType == "pawn")
+                                        {
+                                        
+                                            
+                                            return true;
+                                        }
+                                    }
+        
+        
+                                    if(enemyPieceType == "queen" || enemyPieceType == "bishop")
+                                    {
+                                        return true;
+                                    }
+                                }
+                                break;
+                            }
+                    }
+
+                   
+                }
+                
+
+            }
+        }
+
 
         return false;
 
@@ -717,6 +791,7 @@ export class GameState
 
     checkForMate()
     {
+    
         if(this.isKingInCheck(this.turnOf))
         {
           
@@ -727,7 +802,7 @@ export class GameState
                 if(piece.color == this.turnOf)
                 {
                   
-                    let movesAvailable = this.findAvailableMovesForPiece(piece, false);
+                    let movesAvailable = this.findAvailableMovesForPiece(piece, true);
     
                     if(movesAvailable.length > 0)
                     {
@@ -756,12 +831,16 @@ export class GameState
 
             let thatPiece = tempGameState.findPieceByPosition(piece.position);         
 
-            tempGameState.movePiece(thatPiece, possibleMoves[i], false);
+            tempGameState.movePiece(thatPiece, possibleMoves[i], false, true);
       
 
             if(!tempGameState.isKingInCheck(this.turnOf))
             {
                 newPossibleMoves.push(possibleMoves[i]);
+            }
+            else
+            {
+                
             }
            
             
@@ -806,6 +885,8 @@ export class GameState
         {
             availableMoves = this.forceSavingKing(piece, availableMoves);
         }
+
+
 
         return availableMoves;
 

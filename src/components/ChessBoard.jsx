@@ -1,5 +1,6 @@
 import Tile from "./ChessBoardComponents/Tile"
 import { Vector2 } from "./GameLogic/Misc/Vector2";
+import GameOverPopup from "./ChessBoardComponents/GameOverPopup";
 
 function ChessBoard(props) {
     let tiles = []
@@ -47,11 +48,24 @@ function ChessBoard(props) {
       }
     }
       
-   
+   let winner = null;
+    if(props.gameState.turnOf == "black won")
+    {
+      winner = "Black wins!";
+    }
+  if(props.gameState.turnOf == "white won")
+    {
+      winner = "White wins!";
+    }
+    if(props.gameState.turnOf == "draw")
+      {
+        winner = "Draw!";
+      }
 
-
+  
     return (
         <div className="ChessBoard">
+          <GameOverPopup winner={winner}> </GameOverPopup>
           {tiles}
         </div>
       
