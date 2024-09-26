@@ -17,6 +17,9 @@ export class GameState
 
         this.lastMovedPiece = null;
 
+        this.pawnToPromote = null;
+        this.endTurnData = null;
+
         //squaresTaken holds 0 for empty, 1 for white, 2 for black
         this.colorNum = {
             "empty": 0,
@@ -45,6 +48,7 @@ export class GameState
         newGameState.enemyType = gameState.enemyType;
         newGameState.enemyPlaysAs = gameState.enemyPlaysAs
        newGameState.lastMovedPiece = gameState.lastMovedPiece;
+       newGameState.pawnToPromote = gameState.pawnToPromote;
         
         for(let y=0; y<8; y++)
         {
@@ -139,6 +143,9 @@ export class GameState
 
     }
 
+
+    
+
     //returns number from 0 to max!
     getRandomInt(max) {
         return Math.floor(Math.random() * max);
@@ -225,6 +232,14 @@ export class GameState
         return new Vector2(x, y);
     }
 
+    positionToTileID(position)
+    {
+        let y = position.y;
+        let x = position.x;
+
+        return y*8 + x;
+    }
+
     
     isInsideBoard(pos)
     {
@@ -241,8 +256,17 @@ export class GameState
         return piece.color == "white" ? "black" : "white";
     }
 
-    movePiece(piece, newPosition, dontCheckMore=false, dontCheckForMate=false)
+  
+    
+    movePiece(piece, newPosition, dontCheckMore=false, dontCheckForGameOver=false)
     {
+
+        if(dontCheckMore == false && dontCheckForGameOver == false)
+        {
+            console.log(newPosition);
+        }
+      
+
         let oldPosition = piece.position;
 
         let pieceAtThatPosition = this.findPieceByPosition(newPosition);
@@ -309,18 +333,67 @@ export class GameState
 
         this.lastMovedPiece = piece;
         
+        let endTurnDataLocal =  {
+            "dontCheckMore":dontCheckMore,
+        "dontCheckForGameOver":dontCheckForGameOver
+        }
 
+        //promotions
+        if(piece.type == "pawn")
+        {
+            if(piece.position.y == 0 || piece.position.y == 7)
+            {
+                //we don't need to check the color since pawns can only move forward from the second to last rank.
+
+                this.pawnToPromote = piece;
+                this.endTurnData = endTurnDataLocal;
+                return;
+            }
+        }
+        //because javascript is stupid, we need to do this in this hacky way to wait for input.
+        this.endTurnCallback(
+           endTurnDataLocal
+        )
+    
+       
+
+    }
+
+    promotePiece(toWhatType)
+    {
+        let position = this.pawnToPromote.position;
+        let color = this.pawnToPromote.color;
+
+        this.pieces = this.pieces.filter((thatPiece) => 
+            {
+                return !thatPiece.position.isEqualTo(position);
+            }
+            )
+        
+        let newPiece = new Piece(color, toWhatType, position);
+        this.pieces.push(newPiece);
+
+        this.pawnToPromote = null;
+        
+        console.log("Promotion!");
+        this.endTurnCallback(this.endTurnData);
+
+    }
+
+
+    endTurnCallback(endTurnData)
+    {
         this.turnOf = this.turnOf == "white" ? "black" : "white";
 
-
+        this.endTurnData = null;
    
-        if(!dontCheckForMate)
+        if(!endTurnData.dontCheckForGameOver)
         {
-            this.checkForMate();
+            this.checkForGameOver();
         }
         
 
-        if(!dontCheckMore)
+        if(!endTurnData.dontCheckMore)
         {
             if(this.turnOf == this.enemyPlaysAs)
                 {
@@ -334,8 +407,6 @@ export class GameState
                     }
                 }
         }
-       
-
     }
 
     getEnPassantSquare(piece, thatPiece)
@@ -739,41 +810,44 @@ export class GameState
                         {
                             break;
                         }
-
-                        if(this.squaresTaken[pos.y][pos.x] == this.colorNum[enemyColor])
-                            {
-                                //there is an enemy here. We know we can safely break this direction, but we need to determine if it is attacking us
-                                let enemyPieceType = this.findPieceByPosition(pos).type;
-                                if(x == 0 || y == 0)
+                        else
+                        {
+                            if(this.squaresTaken[pos.y][pos.x] == this.colorNum[enemyColor])
                                 {
-                                    //left/right/up/down, we only care about the enemy Queen and Towers.
-                                    if(enemyPieceType == "queen" || enemyPieceType == "tower")
+                                    //there is an enemy here. We know we can safely break this direction, but we need to determine if it is attacking us
+                                    let enemyPieceType = this.findPieceByPosition(pos).type;
+                                    if(x == 0 || y == 0)
                                     {
-                                        return true;
-                                    }
-                                }
-                                else
-                                {
-                                    
-                                    if(y == dirMultiplier && x != 0)
-                                    {
-                                        //special case where we also care for pawns, since they attack us
-                                        if(enemyPieceType == "pawn")
+                                        //left/right/up/down, we only care about the enemy Queen and Towers.
+                                        if(enemyPieceType == "queen" || enemyPieceType == "tower")
                                         {
-                                        
-                                            
                                             return true;
                                         }
                                     }
-        
-        
-                                    if(enemyPieceType == "queen" || enemyPieceType == "bishop")
+                                    else
                                     {
-                                        return true;
+                                        //diagonal
+                                        if(y == dirMultiplier && x != 0)
+                                        {
+                                            //special case where we also care for pawns, since they attack us, but this only works
+                                            //if literally next to us, so we need to check it
+                                            if(enemyPieceType == "pawn" && i ==0)
+                                            {
+                                                return true;
+                                            }
+                                        }
+            
+            
+                                        if(enemyPieceType == "queen" || enemyPieceType == "bishop")
+                                        {
+                                            return true;
+                                        }
                                     }
+                                    break;
                                 }
-                                break;
-                            }
+                        }
+
+                        
                     }
 
                    
@@ -788,6 +862,93 @@ export class GameState
 
         
     }
+
+    checkForGameOver()
+    {
+            //basically, if the king is not in check then this function returns null
+            //after that, we need to check for all staleMate possibilities. Otherwise everything is fine.
+        
+           if(this.checkForMate() === null)
+           {
+                this.checkForStaleMate();
+           }
+    }
+
+    checkForStaleMate()
+    {
+        let whitePieces = []
+        let blackPieces = [];
+
+        for(let i =0;i<this.pieces.length;i++)
+        {
+            if(this.pieces[i].color == "white")
+            {
+                whitePieces.push(this.pieces[i]);
+            }
+            else if(this.pieces[i].color == "black")
+            {
+                blackPieces.push(this.pieces[i]);
+            }
+        }
+
+        let whiteHasMatingPower = this.hasMatingPower(whitePieces);
+        let rightHasMatingPower = this.hasMatingPower(blackPieces);
+
+        
+        if(!whiteHasMatingPower && !rightHasMatingPower)
+        {
+            return true;
+        }
+        else
+        {
+            //there is still a possibility this is a stalemate, tends to happen if only pawns are left and they are blocking each other and the king
+           if(this.getAllAvailableMovesFor(this.turnOf) == [])
+           {
+                return true;
+           }
+
+
+            
+        }
+        return false;
+    }
+
+    //what we count as mating power is according to (impossibility of checkmate): https://en.wikipedia.org/wiki/Draw_(chess)
+
+    //ergo, impossible combinations are solely:
+    //- king 
+    //- king and one bishop
+    //- king and one knight
+
+    hasMatingPower(colorPieces)
+    {
+        let bishopCounter = 0;
+        let knightCounter = 0;
+
+        for(let i = 0; i<colorPieces.length;i++)
+        {
+           switch(colorPieces.type)
+           {
+            case "king":
+                break;
+            case "bishop":
+                bishopCounter += 1;
+                break;
+            case "knight":
+                knightCounter += 1;
+                break;
+            default:
+                return true;
+           }
+
+           if(bishopCounter + knightCounter > 1)
+           {
+            return true;
+           }
+        }
+        return false;
+    }
+
 
     checkForMate()
     {
@@ -806,7 +967,7 @@ export class GameState
     
                     if(movesAvailable.length > 0)
                     {
-                        return;
+                        return false;
                     }
                 }
             }
@@ -814,9 +975,11 @@ export class GameState
 
             this.turnOf = this.turnOf == "white" ? "black won" : "white won";
 
-            return;
+            return true;
         }
-        return;
+        
+
+        return null;
     }
 
     forceSavingKing(piece, possibleMoves)
@@ -831,7 +994,7 @@ export class GameState
 
             let thatPiece = tempGameState.findPieceByPosition(piece.position);         
 
-            tempGameState.movePiece(thatPiece, possibleMoves[i], false, true);
+            tempGameState.movePiece(thatPiece, possibleMoves[i], true, true);
       
 
             if(!tempGameState.isKingInCheck(this.turnOf))

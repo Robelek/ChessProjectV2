@@ -14,6 +14,7 @@ function App() {
   const [movesForCurrentPiece, setMovesForCurrentPiece] = useState([]);
   const [currentlySelectedPiece, setCurrentlySelectedPiece] = useState(null);
 
+
   function initialiseChessBoard()
   {
     let _gameState = new GameState();
@@ -82,6 +83,7 @@ function App() {
 
   }
 
+ 
 
   return (
 

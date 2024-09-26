@@ -1,9 +1,16 @@
+import { useState } from "react";
 import Tile from "./ChessBoardComponents/Tile"
 import { Vector2 } from "./GameLogic/Misc/Vector2";
 import GameOverPopup from "./ChessBoardComponents/GameOverPopup";
 import PromotionPopup from "./ChessBoardComponents/PromotionPopup";
 
 function ChessBoard(props) {
+  const [refresh, setRefresh] = useState(false);
+    function refreshBoard()
+    {
+      setRefresh(!refresh);
+    }
+
     let tiles = []
 
     for(let y=0;y<8;y++)
@@ -63,12 +70,13 @@ function ChessBoard(props) {
         winner = "Draw!";
       }
 
-    let promotionPosition = null;
+  
+  
   
     return (
-        <div className="ChessBoard">
+        <div className="ChessBoard" id="ChessBoard">
           <GameOverPopup winner={winner}> </GameOverPopup>
-          <PromotionPopup promotionPosition={promotionPosition}></PromotionPopup>
+          <PromotionPopup gameState = {props.gameState} refreshBoard = {refreshBoard}></PromotionPopup>
           {tiles}
         </div>
       

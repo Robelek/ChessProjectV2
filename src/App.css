@@ -178,3 +178,21 @@ main
 {
   margin-bottom: 1rem;
 }
+
+.PromotionPopup
+{
+  position: absolute;
+  background-color: #645757;
+  width: fit-content;
+  height: fit-content;
+  z-index: 2;
+  border: #000000 0.3rem solid;
+
+  display:flex;
+  flex-direction: column;
+  
+}
+.PromotionPopup > *
+{
+  border-bottom: #000000 0.2rem solid;
+}
