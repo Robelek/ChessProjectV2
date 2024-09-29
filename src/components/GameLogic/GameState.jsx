@@ -194,9 +194,9 @@ export class GameState
         let isMaximizing = this.enemyPlaysAs == "white" ? 1 : 0;
         let clone = this.deepCopy(this);
        
-        let depth = 12;
+        let depth = 3;
         
-        let move = this.minmax(clone, depth, depth, Infinity, -Infinity, isMaximizing);
+        let move = this.minmax(clone, depth, depth, -Infinity, Infinity, isMaximizing);
 
       
         let realPiece = this.findPieceByPosition(move.piece.position);
@@ -213,7 +213,7 @@ export class GameState
 
     minmax(gameState, startingDepth, depthLeft, alpha, beta, isMaximizing)
     {
-        console.log(depthLeft);
+ 
 
         if(depthLeft <= 0 || (gameState.turnOf != "white" && gameState.turnOf != "black"))
         {
