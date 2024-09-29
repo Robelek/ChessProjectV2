@@ -21,6 +21,8 @@ export class GameState
 
         this.minmaxEvaluator = new MinMaxEval();
 
+        this.movesList = [];
+
         //squaresTaken holds 0 for empty, 1 for white, 2 for black
         this.colorNum = {
             "empty": 0,
@@ -376,7 +378,11 @@ export class GameState
     movePiece(piece, newPosition, dontCheckMore=false, dontCheckForGameOver=false)
     {
 
-      
+        let wasCastling = false;
+        let wasEnPassant = false;
+        let capturedWhat = null;
+        let hasCapturedMoved = false;
+    
 
         let oldPosition = piece.position;
 
@@ -402,6 +408,8 @@ export class GameState
                 pieceAtThatPosition.hasMoved = true;
                 pieceAtThatPosition.lastPosition = oldRookPosition;
 
+                wasCastling = true;
+
 
             }
             else
@@ -411,6 +419,8 @@ export class GameState
                 
                 this.pieces = this.pieces.filter((thatPiece) => 
                     {
+                        hasCapturedMoved = thatPiece.hasMoved;
+                        capturedWhat = thatPiece.type;
                         return !thatPiece.position.isEqualTo(newPosition);
                     }
                     )
@@ -421,18 +431,24 @@ export class GameState
         {
             //is empty, but this could still be en passant
             let square = this.getEnPassantSquare(piece, this.lastMovedPiece);
+           
+
             if(square !== null)
             {
                 if(square.isEqualTo(newPosition))
                 {
                     let thatPiecePos = this.lastMovedPiece.position;
                     this.squaresTaken[thatPiecePos.y][thatPiecePos.x] = this.colorNum.empty;
-
+                    
                     this.pieces = this.pieces.filter((thatPiece) => 
                         {
+                            hasCapturedMoved = thatPiece.hasMoved;
+                            capturedWhat = thatPiece.type;
                             return !thatPiece.position.isEqualTo(this.lastMovedPiece.position);
                         }
                         )
+
+                    wasEnPassant = true;
                 }
             }
             
@@ -440,6 +456,9 @@ export class GameState
 
         this.squaresTaken[oldPosition.y][oldPosition.x] = this.colorNum.empty;
         this.squaresTaken[newPosition.y][newPosition.x] = this.colorNum[piece.color];
+
+
+      
 
         piece.position = newPosition;
         piece.hasMoved = true;
@@ -451,6 +470,16 @@ export class GameState
             "dontCheckMore":dontCheckMore,
         "dontCheckForGameOver":dontCheckForGameOver
         }
+        this.movesList.push(
+        {
+            "from": oldPosition,
+            "to": newPosition,
+            "enPassant": wasEnPassant,
+            "castling": wasCastling,
+            "promotion": false,
+            "capturedWhat": capturedWhat,
+            "hasCapturedMoved":hasCapturedMoved
+        });
 
         //promotions
         if(piece.type == "pawn")
@@ -461,15 +490,122 @@ export class GameState
 
                 this.pawnToPromote = piece;
                 this.endTurnData = endTurnDataLocal;
+                this.movesList[-1].promotion = true;
                 return;
             }
         }
+
         //because javascript is stupid, we need to do this in this hacky way to wait for input.
         this.endTurnCallback(
            endTurnDataLocal
         )
     
        
+
+    }
+
+    unmakeMove()
+    {
+        let lastMove = this.movesList.pop();
+
+        let from = lastMove.from;
+        let to = lastMove.to;
+
+        let pieceThatMoved = this.findPieceByPosition(to);
+
+        pieceThatMoved.lastPosition = from;
+        pieceThatMoved.position = from;
+
+        if(lastMove.capturedWhat != null)
+        {
+            let typeOfCapturedPiece = lastMove.capturedWhat;
+
+            let newPiece = new Piece(this.getEnemyColorOfPiece(pieceThatMoved), typeOfCapturedPiece, new Vector2(-1, -1));
+
+            let enemyColor = this.getEnemyColorOfPiece(pieceThatMoved);
+
+            if(typeOfCapturedPiece == "pawn")
+            {
+                let startingY = enemyColor == "white"? 6 : 1;
+                //it doesn't actually matter if that pawn captured something and changed his x, since the positions only matter if
+                //he has not moved yet
+                newPiece.initialPosition = new Vector2(to.x, startingY);
+                newPiece.position = to;
+                newPiece.hasMoved = lastMove.hasCapturedMoved;
+
+                if(lastMove.wasEnPassant)
+                {
+                        //if it was en passant, than the position needs to be offset by 1
+                    let dir = enemyColor == "white" ? 1: -1;
+                    newPiece.position = new Vector2(newPiece.position.x, newPiece.position.y + dir);
+                }
+
+              
+            }
+            if(typeOfCapturedPiece == "rook")
+            {
+                let startingY = enemyColor == "white"? 7 : 0;
+                //it doesn't actually matter if that pawn captured something and changed his x, since the positions only matter if
+                //he has not moved yet
+                newPiece.initialPosition = new Vector2(to.x, startingY);
+                newPiece.position = to;
+
+                newPiece.hasMoved = lastMove.hasCapturedMoved;
+            }
+           
+
+            
+            this.pieces.push(newPiece);
+        }
+
+
+       
+
+        if(lastMove.wasCastling)
+        {
+            //castling is treated as the king moving, but we also need to move the rook too
+            let thatRook = null;
+            let wasRightRook = false;
+            if(pieceThatMoved.position.x > pieceThatMoved.initialPosition.x)
+            {
+                wasRightRook = true;
+            }
+
+            let xOfInitial = wasRightRook ? 7 : 0;
+            let yOfInitial = color == "white" ? 7: 0;
+            let wantedInitialPos = new Vector2(xOfInitial, yOfInitial);
+
+            for(let i=0;i<this.pieces.length;i++)
+            {
+                if(this.pieces[i].initialPosition.isEqualTo(wantedInitialPos))
+                {
+                    thatRook = this.pieces[i];
+                    break;
+                }
+            }
+
+            thatRook.position = wantedInitialPos;
+            thatRook.lastPosition = wantedInitialPos;
+            thatRook.hasMoved = false;
+
+            pieceThatMoved.hasMoved = false;
+           
+
+        }
+
+        if(lastMove.promotion)
+        {
+            pieceThatMoved.type = "pawn";
+        }
+
+
+        if(from == pieceThatMoved.initialPosition)
+        {
+            pieceThatMoved.hasMoved = false;
+        }
+
+
+
 
     }
 
@@ -493,6 +629,7 @@ export class GameState
         this.endTurnCallback(this.endTurnData);
 
     }
+
 
 
     endTurnCallback(endTurnData)
