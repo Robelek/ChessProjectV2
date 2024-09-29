@@ -1,8 +1,7 @@
 
 import { Piece } from "./Piece";
 import { Vector2 } from "./Misc/Vector2";
-
-
+import { MinMaxEval } from "./MinMaxEval";
 
 
 export class GameState
@@ -19,6 +18,8 @@ export class GameState
 
         this.pawnToPromote = null;
         this.endTurnData = null;
+
+        this.minmaxEvaluator = new MinMaxEval();
 
         //squaresTaken holds 0 for empty, 1 for white, 2 for black
         this.colorNum = {
@@ -134,11 +135,18 @@ export class GameState
 
        }
 
-
-       if(this.enemyType == "randomAI" && this.enemyPlaysAs == "white")
+       if(this.enemyPlaysAs == "white")
        {
-        this.randomAITurn();
+        if(this.enemyType == "randomAI" )
+        {
+            this.randomAITurn();
+        }
+        else if (this.enemyType == "smartAI")
+        {
+            this.minmaxTurn();
+        }
        }
+     
 
 
     }
@@ -153,6 +161,7 @@ export class GameState
 
       
 
+    
     randomAITurn()
     {
         if(this.turnOf != this.enemyPlaysAs)
@@ -176,6 +185,112 @@ export class GameState
         }
 
       
+
+    }
+
+
+    minmaxTurn()
+    {
+        let isMaximizing = this.enemyPlaysAs == "white" ? 1 : 0;
+        let clone = this.deepCopy(this);
+       
+        let depth = 12;
+        
+        let move = this.minmax(clone, depth, depth, Infinity, -Infinity, isMaximizing);
+
+      
+        let realPiece = this.findPieceByPosition(move.piece.position);
+
+        this.movePiece(realPiece, move.position, true);
+        if(this.endTurnData != null)
+        {
+            //hardcoded queen promotion for now
+            this.promotePiece("queen");
+        }
+       
+
+    }
+
+    minmax(gameState, startingDepth, depthLeft, alpha, beta, isMaximizing)
+    {
+        console.log(depthLeft);
+
+        if(depthLeft <= 0 || (gameState.turnOf != "white" && gameState.turnOf != "black"))
+        {
+          return this.minmaxEvaluator.evaulate(gameState);
+        }
+
+        let possibleMoves = gameState.getAllAvailableMovesFor(gameState.turnOf);
+
+        if(isMaximizing)
+        {
+            let bestOne = -Infinity;
+            let bestMove = possibleMoves[0];
+            for(let move of possibleMoves)
+            {
+                let newGameState = this.deepCopy(gameState);
+                let thatPiece = newGameState.findPieceByPosition(move.piece.position);
+                newGameState.movePiece(thatPiece, move.position, true);
+
+                let evaluation = this.minmax(newGameState, startingDepth, depthLeft - 1, alpha, beta, !isMaximizing);
+
+                if(bestOne < evaluation)
+                {
+                    bestMove = move;
+                    bestOne = evaluation;
+                }
+
+                alpha =  Math.max(alpha, evaluation);
+                if(beta <= alpha)
+                {
+                    break;
+                }
+            }
+
+            if(depthLeft == startingDepth)
+            {
+                return bestMove;
+            }
+            else
+            {
+                return bestOne;
+            }
+           
+        }
+        else
+        {
+            let bestOne = Infinity;
+            let bestMove = possibleMoves[0];
+            for(let move of possibleMoves)
+            {
+                let newGameState = this.deepCopy(gameState);
+                let thatPiece = newGameState.findPieceByPosition(move.piece.position);
+                newGameState.movePiece(thatPiece, move.position, true);
+
+                let evaluation = this.minmax(newGameState, startingDepth, depthLeft - 1, alpha, beta, !isMaximizing);
+
+
+                if(bestOne > evaluation)
+                {
+                    bestMove = move;
+                    bestOne = evaluation;
+                }
+
+                beta =  Math.min(beta, evaluation);
+                if(beta <= alpha)
+                {
+                    break;
+                }
+            }
+            if(depthLeft == startingDepth)
+                {
+                    return bestMove;
+                }
+                else
+                {
+                    return bestOne;
+                }
+        }
 
     }
 
@@ -261,10 +376,6 @@ export class GameState
     movePiece(piece, newPosition, dontCheckMore=false, dontCheckForGameOver=false)
     {
 
-        if(dontCheckMore == false && dontCheckForGameOver == false)
-        {
-            console.log(newPosition);
-        }
       
 
         let oldPosition = piece.position;
@@ -314,6 +425,9 @@ export class GameState
             {
                 if(square.isEqualTo(newPosition))
                 {
+                    let thatPiecePos = this.lastMovedPiece.position;
+                    this.squaresTaken[thatPiecePos.y][thatPiecePos.x] = this.colorNum.empty;
+
                     this.pieces = this.pieces.filter((thatPiece) => 
                         {
                             return !thatPiece.position.isEqualTo(this.lastMovedPiece.position);
@@ -403,7 +517,7 @@ export class GameState
                     }
                     if(this.enemyType == "smartAI")
                     {
-        
+                        this.minmaxTurn();
                     }
                 }
         }
@@ -815,7 +929,17 @@ export class GameState
                             if(this.squaresTaken[pos.y][pos.x] == this.colorNum[enemyColor])
                                 {
                                     //there is an enemy here. We know we can safely break this direction, but we need to determine if it is attacking us
-                                    let enemyPieceType = this.findPieceByPosition(pos).type;
+                                    let enemyPiece = this.findPieceByPosition(pos);
+                                    if(enemyPiece == null)
+                                    {
+                                        console.log("something dumb has happened");
+                                        continue;
+                                        
+                                    }
+
+                                    let enemyPieceType = enemyPiece.type;
+
+                                   
                                     if(x == 0 || y == 0)
                                     {
                                         //left/right/up/down, we only care about the enemy Queen and Towers.
@@ -870,8 +994,12 @@ export class GameState
         
            if(this.checkForMate() === null)
            {
-                this.checkForStaleMate();
+                if(this.checkForStaleMate())
+                {
+                    this.turnOf = "stalemate";
+                }
            }
+
     }
 
     checkForStaleMate()

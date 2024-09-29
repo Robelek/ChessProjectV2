@@ -5,7 +5,7 @@ function UserInterface(props) {
 
           <div className="optionSelects">
           Enemy will be:
-          <select id="enemySelect"> 
+          <select id="enemySelect" defaultValue={"smartAI"}> 
             <option value="player">
               Player
             </option>
