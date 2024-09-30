@@ -2,6 +2,7 @@
 import { Piece } from "./Piece";
 import { Vector2 } from "./Misc/Vector2";
 import { MinMaxEval } from "./MinMaxEval";
+import { cloneDeep } from "lodash";
 
 
 export class GameState
@@ -68,8 +69,12 @@ export class GameState
             newPiece.position = new Vector2(thatPiece.position.x, thatPiece.position.y);
             newPiece.hasMoved = thatPiece.hasMoved;
             newPiece.lastPosition = thatPiece.lastPosition;
+            newPiece.initialPosition = thatPiece.initialPosition;
+
             newGameState.pieces.push(newPiece);
         }
+
+        newGameState.movesList = cloneDeep(this.movesList);
 
         return newGameState;
     }
@@ -80,6 +85,8 @@ export class GameState
         this.pieces = [];
         this.enemyType = _enemyType;
         this.enemyPlaysAs = _enemyPlaysAs
+
+        this.movesList = [];
 
         this.pieces.push(
 
@@ -194,16 +201,19 @@ export class GameState
     minmaxTurn()
     {
         let isMaximizing = this.enemyPlaysAs == "white" ? 1 : 0;
-        let clone = this.deepCopy(this);
        
-        let depth = 3;
-        
-        let move = this.minmax(clone, depth, depth, -Infinity, Infinity, isMaximizing);
+        let depth = 4;
 
-      
-        let realPiece = this.findPieceByPosition(move.piece.position);
+        let boardClone = this.deepCopy(this);
+        
+        let move = this.minmax(boardClone, depth, depth, -Infinity, Infinity, isMaximizing);
+
+     
+        let realPiece = this.findPieceByPosition(move.from);
 
         this.movePiece(realPiece, move.position, true);
+
+
         if(this.endTurnData != null)
         {
             //hardcoded queen promotion for now
@@ -215,7 +225,7 @@ export class GameState
 
     minmax(gameState, startingDepth, depthLeft, alpha, beta, isMaximizing)
     {
- 
+
 
         if(depthLeft <= 0 || (gameState.turnOf != "white" && gameState.turnOf != "black"))
         {
@@ -230,11 +240,10 @@ export class GameState
             let bestMove = possibleMoves[0];
             for(let move of possibleMoves)
             {
-                let newGameState = this.deepCopy(gameState);
-                let thatPiece = newGameState.findPieceByPosition(move.piece.position);
-                newGameState.movePiece(thatPiece, move.position, true);
-
-                let evaluation = this.minmax(newGameState, startingDepth, depthLeft - 1, alpha, beta, !isMaximizing);
+                let pieceAtThatPosition = gameState.findPieceByPosition(move.from);
+                gameState.movePiece(pieceAtThatPosition, move.position, true);
+                let evaluation = gameState.minmax(gameState, startingDepth, depthLeft - 1, alpha, beta, !isMaximizing);
+                gameState.unmakeMove();
 
                 if(bestOne < evaluation)
                 {
@@ -265,12 +274,12 @@ export class GameState
             let bestMove = possibleMoves[0];
             for(let move of possibleMoves)
             {
-                let newGameState = this.deepCopy(gameState);
-                let thatPiece = newGameState.findPieceByPosition(move.piece.position);
-                newGameState.movePiece(thatPiece, move.position, true);
 
-                let evaluation = this.minmax(newGameState, startingDepth, depthLeft - 1, alpha, beta, !isMaximizing);
-
+                let pieceAtThatPosition = gameState.findPieceByPosition(move.from);
+                gameState.movePiece(pieceAtThatPosition, move.position, true);
+                let evaluation = gameState.minmax(gameState, startingDepth, depthLeft - 1, alpha, beta, !isMaximizing);
+                gameState.unmakeMove();
+       
 
                 if(bestOne > evaluation)
                 {
@@ -311,7 +320,8 @@ export class GameState
                     possibleMoves.push(
                         {
                             "piece": this.pieces[i],
-                            "position": pieceMoves[j]
+                            "position": pieceMoves[j],
+                            "from": this.pieces[i].position
                         }
                     )
                 }
@@ -415,12 +425,12 @@ export class GameState
             else
             {
            
-              
+                hasCapturedMoved = pieceAtThatPosition.hasMoved;
+                capturedWhat = pieceAtThatPosition.type;
                 
                 this.pieces = this.pieces.filter((thatPiece) => 
                     {
-                        hasCapturedMoved = thatPiece.hasMoved;
-                        capturedWhat = thatPiece.type;
+                       
                         return !thatPiece.position.isEqualTo(newPosition);
                     }
                     )
@@ -440,10 +450,12 @@ export class GameState
                     let thatPiecePos = this.lastMovedPiece.position;
                     this.squaresTaken[thatPiecePos.y][thatPiecePos.x] = this.colorNum.empty;
                     
+                    hasCapturedMoved = this.lastMovedPiece.hasMoved;
+                    capturedWhat = this.lastMovedPiece.type;
+
                     this.pieces = this.pieces.filter((thatPiece) => 
                         {
-                            hasCapturedMoved = thatPiece.hasMoved;
-                            capturedWhat = thatPiece.type;
+                           
                             return !thatPiece.position.isEqualTo(this.lastMovedPiece.position);
                         }
                         )
@@ -487,10 +499,9 @@ export class GameState
             if(piece.position.y == 0 || piece.position.y == 7)
             {
                 //we don't need to check the color since pawns can only move forward from the second to last rank.
-
                 this.pawnToPromote = piece;
                 this.endTurnData = endTurnDataLocal;
-                this.movesList[-1].promotion = true;
+                this.movesList.at(-1).promotion = true;
                 return;
             }
         }
@@ -506,21 +517,39 @@ export class GameState
 
     unmakeMove()
     {
+
+        if(this.movesList.length <= 0)
+        {
+            return;
+        }
+
         let lastMove = this.movesList.pop();
+
 
         let from = lastMove.from;
         let to = lastMove.to;
 
         let pieceThatMoved = this.findPieceByPosition(to);
+        if(pieceThatMoved == null)
+        {
+            
+    
+        }
+
 
         pieceThatMoved.lastPosition = from;
         pieceThatMoved.position = from;
 
+        this.squaresTaken[to.y][to.x] = this.colorNum.empty;
+        this.squaresTaken[from.y][from.x] = this.colorNum[pieceThatMoved.color];
+
         if(lastMove.capturedWhat != null)
         {
+        
             let typeOfCapturedPiece = lastMove.capturedWhat;
-
-            let newPiece = new Piece(this.getEnemyColorOfPiece(pieceThatMoved), typeOfCapturedPiece, new Vector2(-1, -1));
+            let newPiece = new Piece(this.getEnemyColorOfPiece(pieceThatMoved), typeOfCapturedPiece, to);
+            
+         
 
             let enemyColor = this.getEnemyColorOfPiece(pieceThatMoved);
 
@@ -530,14 +559,15 @@ export class GameState
                 //it doesn't actually matter if that pawn captured something and changed his x, since the positions only matter if
                 //he has not moved yet
                 newPiece.initialPosition = new Vector2(to.x, startingY);
-                newPiece.position = to;
                 newPiece.hasMoved = lastMove.hasCapturedMoved;
 
                 if(lastMove.wasEnPassant)
                 {
+                    console.log("was en passant")
                         //if it was en passant, than the position needs to be offset by 1
                     let dir = enemyColor == "white" ? 1: -1;
                     newPiece.position = new Vector2(newPiece.position.x, newPiece.position.y + dir);
+
                 }
 
               
@@ -548,12 +578,12 @@ export class GameState
                 //it doesn't actually matter if that pawn captured something and changed his x, since the positions only matter if
                 //he has not moved yet
                 newPiece.initialPosition = new Vector2(to.x, startingY);
-                newPiece.position = to;
 
                 newPiece.hasMoved = lastMove.hasCapturedMoved;
             }
            
-
+            this.squaresTaken[to.y][to.x] = this.colorNum[enemyColor];
+      
             
             this.pieces.push(newPiece);
         }
@@ -572,7 +602,7 @@ export class GameState
             }
 
             let xOfInitial = wasRightRook ? 7 : 0;
-            let yOfInitial = color == "white" ? 7: 0;
+            let yOfInitial = pieceThatMoved.color == "white" ? 7: 0;
             let wantedInitialPos = new Vector2(xOfInitial, yOfInitial);
 
             for(let i=0;i<this.pieces.length;i++)
@@ -586,6 +616,7 @@ export class GameState
 
             thatRook.position = wantedInitialPos;
             thatRook.lastPosition = wantedInitialPos;
+            thatRook.initialPosition = wantedInitialPos;
             thatRook.hasMoved = false;
 
             pieceThatMoved.hasMoved = false;
@@ -605,6 +636,8 @@ export class GameState
         }
 
 
+        //we also need to switch the turn
+        this.turnOf = pieceThatMoved.color;
 
 
     }
@@ -1254,22 +1287,20 @@ export class GameState
         let newPossibleMoves = [];
         for(let i=0;i<possibleMoves.length;i++)
         {
-            let tempGameState = this.deepCopy(this);
-     
+          
+            let originalTurnColor = this.turnOf;
 
-            let thatPiece = tempGameState.findPieceByPosition(piece.position);         
-
-            tempGameState.movePiece(thatPiece, possibleMoves[i], true, true);
+             this.movePiece(piece, possibleMoves[i], true, true);
       
-
-            if(!tempGameState.isKingInCheck(this.turnOf))
+        
+            if(!this.isKingInCheck(originalTurnColor))
             {
                 newPossibleMoves.push(possibleMoves[i]);
             }
-            else
-            {
-                
-            }
+            
+            this.unmakeMove();
+     
+      
            
             
         }

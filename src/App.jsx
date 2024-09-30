@@ -13,6 +13,12 @@ function App() {
   const [gameState, setGameState] = useState(new GameState());
   const [movesForCurrentPiece, setMovesForCurrentPiece] = useState([]);
   const [currentlySelectedPiece, setCurrentlySelectedPiece] = useState(null);
+  const [refresh, setRefresh] = useState(false);
+  function refreshGame()
+  {
+    setRefresh(!refresh);
+  }
+
 
 
   function initialiseChessBoard()
@@ -83,13 +89,20 @@ function App() {
 
   }
 
+  function undoMove()
+  {
+    gameState.unmakeMove();
+    refreshGame();
+    
+  }
+
  
 
   return (
 
       <main>
           <ChessBoard gameState = {gameState} selectTile = {selectTile} movesForCurrentPiece={movesForCurrentPiece}></ChessBoard>
-          <UserInterface initFunction = {initialiseChessBoard} gameState={gameState}></UserInterface>
+          <UserInterface initFunction = {initialiseChessBoard} unmakeMove = {undoMove} gameState={gameState}></UserInterface>
       </main>
     
   )

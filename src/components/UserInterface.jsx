@@ -39,6 +39,8 @@ function UserInterface(props) {
          
 
           <button onClick={props.initFunction} className="NewGameButton"> New game </button>
+
+          <button onClick={props.unmakeMove} className="NewGameButton"> Undo last move </button>
       </div>
   
     );
